@@ -194,7 +194,6 @@ export function parseInlineWithHooks(
 						},
 					],
 					url,
-					title: undefined,
 					autolink: true,
 					pos: span(
 						ctx.position(i, chars.length),
@@ -534,7 +533,7 @@ function matchReferenceLink(
 			text: children,
 			label: normalized,
 			url,
-			title,
+			...(title !== undefined ? { title } : {}),
 			pos: span(
 				ctx.position(start, chars.length),
 				ctx.position(end, chars.length),
@@ -563,7 +562,7 @@ function matchLink(
 			type: "Link",
 			text: children,
 			url,
-			title,
+			...(title !== undefined ? { title } : {}),
 			autolink: false,
 			pos: span(
 				ctx.position(start, chars.length),
@@ -590,7 +589,7 @@ function matchImage(
 			type: "Image",
 			alt,
 			url,
-			title,
+			...(title !== undefined ? { title } : {}),
 			pos: span(
 				ctx.position(start, chars.length),
 				ctx.position(afterUrl, chars.length),

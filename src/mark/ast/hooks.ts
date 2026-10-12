@@ -95,8 +95,14 @@ export function finalizeHookBlock(
 		case "BlockQuote":
 		case "List":
 		case "HtmlBlock":
-		case "Table":
-			return { ...block, pos, attrs: trailingAttrs ?? block.attrs };
+		case "Table": {
+			const attrs = trailingAttrs ?? block.attrs;
+			return {
+				...block,
+				pos,
+				...(attrs !== undefined ? { attrs } : {}),
+			};
+		}
 		case "ThematicBreak":
 		case "LinkReferenceDefinition":
 		case "Comment":

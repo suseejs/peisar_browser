@@ -1,26 +1,27 @@
 {
-	"name": "peisar_browser",
-	"version": "1.0.0",
-	"description": "Browser bundle for Peisar",
-	"main": "index.js",
-	"scripts": {
-		"lint": "biome check --write src",
-		"fmt": "biome format --write"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/suseejs/peisar_browser.git"
-	},
-	"keywords": [],
-	"type": "module",
-	"bugs": {
-		"url": "https://github.com/suseejs/peisar_browser/issues"
-	},
-	"homepage": "https://github.com/suseejs/peisar_browser#readme",
-	"devDependencies": {
-		"@biomejs/biome": "^2.5.15",
-		"@types/node": "^26.6.5",
-		"susee": "^3.0.0",
-		"typescript": "^7.0.2"
-	}
+  "name": "peisar_browser",
+  "version": "1.0.0",
+  "description": "Browser bundle for Peisar",
+  "main": "index.js",
+  "scripts": {
+    "lint": "biome check --write src",
+    "fmt": "biome format --write",
+    "build": "node index.cjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suseejs/peisar_browser.git"
+  },
+  "keywords": [],
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/suseejs/peisar_browser/issues"
+  },
+  "homepage": "https://github.com/suseejs/peisar_browser#readme",
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@types/node": "^26.6.5",
+    "susee": "^3.0.0",
+    "typescript": "^7.0.2"
+  }
 }

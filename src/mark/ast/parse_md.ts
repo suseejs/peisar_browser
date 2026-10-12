@@ -70,7 +70,7 @@ export function parseMd(
 	return {
 		nodeType: "root",
 		pos: { start, end },
-		fileName: file_name,
+		...(file_name !== undefined ? { fileName: file_name } : {}),
 		children: blocks,
 		linkReferences: refDefs,
 	};

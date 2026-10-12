@@ -1,17 +1,19 @@
-import type { AstOptions } from "../type/index.js";
+import type { AstOptions, PeisarOptions } from "../type/index.js";
 
 /** The default options: both GFM and Kramdown extensions enabled. */
 export const DEFAULT_AST_OPTIONS: AstOptions = {
-	gfm: true,
-	kramdown: true,
-	fileName: undefined,
+  gfm: true,
+  kramdown: true,
+  fileName: undefined,
 };
 
 /** Fill in missing option fields with the defaults. */
-export function resolveAstOptions(options?: Partial<AstOptions>): AstOptions {
-	return {
-		gfm: options?.gfm ?? DEFAULT_AST_OPTIONS.gfm,
-		kramdown: options?.kramdown ?? DEFAULT_AST_OPTIONS.kramdown,
-		fileName: options?.fileName ?? DEFAULT_AST_OPTIONS.fileName,
-	};
+export function resolveAstOptions(
+  options?: Partial<PeisarOptions> | undefined,
+): AstOptions {
+  return {
+    gfm: options?.gfm ?? DEFAULT_AST_OPTIONS.gfm,
+    kramdown: options?.kramdown ?? DEFAULT_AST_OPTIONS.kramdown,
+    fileName: options?.fileName ?? DEFAULT_AST_OPTIONS.fileName,
+  };
 }

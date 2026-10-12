@@ -1,46 +1,47 @@
 import type {
-	Attributes,
-	Block,
-	Document,
-	Inline,
-	ListItem,
-	PeisarTableCellAlignment,
-	RenderOptions,
-	Table,
+  Attributes,
+  Block,
+  Document,
+  Inline,
+  ListItem,
+  PeisarTableCellAlignment,
+  RenderOptions,
+  Table,
+  PeisarOptions,
 } from "../type/index.js";
 
 function toHtmlAttrString(attrs: Attributes): string {
-	const parts: string[] = [];
-	if (attrs.id !== undefined) {
-		parts.push(`id="${escapeAttr(attrs.id)}"`);
-	}
-	if (attrs.classes !== undefined) {
-		parts.push(`class="${escapeAttr(attrs.classes.join(" "))}"`);
-	}
-	if (attrs.attributes !== undefined) {
-		for (const [k, v] of attrs.attributes) {
-			parts.push(`${escapeAttr(k)}="${escapeAttr(v)}"`);
-		}
-	}
-	return parts.join(" ");
+  const parts: string[] = [];
+  if (attrs.id !== undefined) {
+    parts.push(`id="${escapeAttr(attrs.id)}"`);
+  }
+  if (attrs.classes !== undefined) {
+    parts.push(`class="${escapeAttr(attrs.classes.join(" "))}"`);
+  }
+  if (attrs.attributes !== undefined) {
+    for (const [k, v] of attrs.attributes) {
+      parts.push(`${escapeAttr(k)}="${escapeAttr(v)}"`);
+    }
+  }
+  return parts.join(" ");
 }
 
 function escapeAttr(s: string): string {
-	return s
-		.replaceAll("&", "&amp;")
-		.replaceAll('"', "&quot;")
-		.replaceAll("<", "&lt;")
-		.replaceAll(">", "&gt;");
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 /** `RenderOptions` with every field resolved to a concrete value. */
 export interface ResolvedRenderOptions {
-	fragment: boolean;
-	charset: boolean;
-	viewport: boolean;
-	title: string | null;
-	bodyClass: string | null;
-	style: string | null;
+  fragment: boolean;
+  charset: boolean;
+  viewport: boolean;
+  title: string | null;
+  bodyClass: string | null;
+  style: string | null;
 }
 
 /**
@@ -49,12 +50,9 @@ export interface ResolvedRenderOptions {
  * to `true`.
  */
 export const DEFAULT_RENDER_OPTIONS: RenderOptions = {
-	fragment: false,
-	charset: true,
-	viewport: true,
-	title: undefined,
-	bodyClass: undefined,
-	style: undefined,
+  fragment: false,
+  charset: true,
+  viewport: true,
 };
 
 /**
@@ -63,19 +61,21 @@ export const DEFAULT_RENDER_OPTIONS: RenderOptions = {
  * `charset` / `viewport` only matter for full documents (`fragment ===
  * false`); they default to `true` in that mode.
  */
-function resolveRenderOptions(options?: RenderOptions): ResolvedRenderOptions {
-	const fragment =
-		options?.fragment ?? DEFAULT_RENDER_OPTIONS.fragment ?? false;
-	// Full-document mode: `charset` / `viewport` default to `true` here.
-	const fullDocument = fragment === false;
-	return {
-		fragment,
-		charset: options?.charset ?? fullDocument,
-		viewport: options?.viewport ?? fullDocument,
-		title: options?.title ?? DEFAULT_RENDER_OPTIONS.title ?? null,
-		bodyClass: options?.bodyClass ?? DEFAULT_RENDER_OPTIONS.bodyClass ?? null,
-		style: options?.style ?? DEFAULT_RENDER_OPTIONS.style ?? null,
-	};
+function resolveRenderOptions(
+  options?: Partial<PeisarOptions> | undefined,
+): ResolvedRenderOptions {
+  const fragment =
+    options?.fragment ?? DEFAULT_RENDER_OPTIONS.fragment ?? false;
+  // Full-document mode: `charset` / `viewport` default to `true` here.
+  const fullDocument = fragment === false;
+  return {
+    fragment,
+    charset: options?.charset ?? fullDocument,
+    viewport: options?.viewport ?? fullDocument,
+    title: options?.title ?? DEFAULT_RENDER_OPTIONS.title ?? null,
+    bodyClass: options?.bodyClass ?? DEFAULT_RENDER_OPTIONS.bodyClass ?? null,
+    style: options?.style ?? DEFAULT_RENDER_OPTIONS.style ?? null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -84,425 +84,425 @@ function resolveRenderOptions(options?: RenderOptions): ResolvedRenderOptions {
 
 /** Renders a Markdown AST (`Document`) to an HTML string. */
 export class AstToHtml {
-	private out: string;
-	/** When `true`, inline text is HTML-escaped. */
-	private escape: boolean;
-	private opts: ResolvedRenderOptions;
+  private out: string;
+  /** When `true`, inline text is HTML-escaped. */
+  private escape: boolean;
+  private opts: ResolvedRenderOptions;
 
-	/**
-	 * Create a new renderer with the given options.
-	 *
-	 * Omit `opts` to use the defaults (see `DEFAULT_RENDER_OPTIONS`).
-	 */
-	constructor(opts?: RenderOptions) {
-		this.out = "";
-		this.escape = true;
-		this.opts = resolveRenderOptions(opts);
-	}
+  /**
+   * Create a new renderer with the given options.
+   *
+   * Omit `opts` to use the defaults (see `DEFAULT_RENDER_OPTIONS`).
+   */
+  constructor(opts?: Partial<PeisarOptions> | undefined) {
+    this.out = "";
+    this.escape = true;
+    this.opts = resolveRenderOptions(opts);
+  }
 
-	/** Return the HTML accumulated so far. */
-	finish(): string {
-		return this.out;
-	}
+  /** Return the HTML accumulated so far. */
+  finish(): string {
+    return this.out;
+  }
 
-	/**
-	 * Render a `Document` and return the HTML string immediately.
-	 *
-	 * Convenience wrapper around `renderDocument` + `finish`.
-	 */
-	renderDocumentOwned(doc: Document): string {
-		this.renderDocument(doc);
-		return this.finish();
-	}
+  /**
+   * Render a `Document` and return the HTML string immediately.
+   *
+   * Convenience wrapper around `renderDocument` + `finish`.
+   */
+  renderDocumentOwned(doc: Document): string {
+    this.renderDocument(doc);
+    return this.finish();
+  }
 
-	// -----------------------------------------------------------------------
-	// Top-level entry
-	// -----------------------------------------------------------------------
+  // -----------------------------------------------------------------------
+  // Top-level entry
+  // -----------------------------------------------------------------------
 
-	/**
-	 * Render a full `Document` into the internal buffer.
-	 *
-	 * When `opts.fragment` is `true` only the body content is emitted.
-	 * When `false`, a complete `<!DOCTYPE html>` document with `<html>`,
-	 * `<head>`, and `<body>` wrappers is produced.
-	 */
-	renderDocument(doc: Document): void {
-		if (this.opts.fragment) {
-			for (const b of doc.children) {
-				this.renderBlock(b);
-			}
-		} else {
-			this.out += "<!DOCTYPE html>\n<html>\n<head>\n";
-			if (this.opts.charset) {
-				this.out += '<meta charset="utf-8">\n';
-			}
-			if (this.opts.viewport) {
-				this.out +=
-					'<meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
-			}
-			if (this.opts.title !== null) {
-				this.out += "<title>";
-				this.out += this.esc(this.opts.title);
-				this.out += "</title>\n";
-			}
-			if (this.opts.style !== null) {
-				this.out += "<style>\n";
-				this.out += this.opts.style;
-				this.out += "\n</style>\n";
-			}
-			this.out += "</head>\n<body";
-			if (this.opts.bodyClass !== null) {
-				this.out += ' class="';
-				this.out += this.escNoQuote(this.opts.bodyClass);
-				this.out += '"';
-			}
-			this.out += ">\n";
-			for (const b of doc.children) {
-				this.renderBlock(b);
-			}
-			this.out += "</body>\n</html>\n";
-		}
-	}
+  /**
+   * Render a full `Document` into the internal buffer.
+   *
+   * When `opts.fragment` is `true` only the body content is emitted.
+   * When `false`, a complete `<!DOCTYPE html>` document with `<html>`,
+   * `<head>`, and `<body>` wrappers is produced.
+   */
+  renderDocument(doc: Document): void {
+    if (this.opts.fragment) {
+      for (const b of doc.children) {
+        this.renderBlock(b);
+      }
+    } else {
+      this.out += "<!DOCTYPE html>\n<html>\n<head>\n";
+      if (this.opts.charset) {
+        this.out += '<meta charset="utf-8">\n';
+      }
+      if (this.opts.viewport) {
+        this.out +=
+          '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
+      }
+      if (this.opts.title !== null) {
+        this.out += "<title>";
+        this.out += this.esc(this.opts.title);
+        this.out += "</title>\n";
+      }
+      if (this.opts.style !== null) {
+        this.out += "<style>\n";
+        this.out += this.opts.style;
+        this.out += "\n</style>\n";
+      }
+      this.out += "</head>\n<body";
+      if (this.opts.bodyClass !== null) {
+        this.out += ' class="';
+        this.out += this.escNoQuote(this.opts.bodyClass);
+        this.out += '"';
+      }
+      this.out += ">\n";
+      for (const b of doc.children) {
+        this.renderBlock(b);
+      }
+      this.out += "</body>\n</html>\n";
+    }
+  }
 
-	// -----------------------------------------------------------------------
-	// Blocks
-	// -----------------------------------------------------------------------
+  // -----------------------------------------------------------------------
+  // Blocks
+  // -----------------------------------------------------------------------
 
-	/** Render a single block-level node. */
-	renderBlock(block: Block): void {
-		switch (block.type) {
-			case "Heading": {
-				this.out += `<h${block.level}`;
-				this.emitAttrs(block.attrs);
-				this.out += ">";
-				for (const inline of block.children) {
-					this.renderInline(inline);
-				}
-				this.out += `</h${block.level}>\n`;
-				break;
-			}
-			case "Paragraph": {
-				this.out += "<p";
-				this.emitAttrs(block.attrs);
-				this.out += ">";
-				for (const inline of block.children) {
-					this.renderInline(inline);
-				}
-				this.out += "</p>\n";
-				break;
-			}
-			case "CodeBlock": {
-				this.out += "<pre><code";
-				if (block.lang !== undefined && block.lang !== "") {
-					this.out += ' class="language-';
-					this.out += this.escNoQuote(block.lang);
-					this.out += '"';
-				}
-				this.emitAttrs(block.attrs);
-				this.out += ">";
-				// Escape `<`, `>`, `&` (etc.) so the code content is valid HTML.
-				this.out += this.esc(block.code);
-				this.out += "</code></pre>\n";
-				break;
-			}
-			case "BlockQuote": {
-				this.out += "<blockquote";
-				this.emitAttrs(block.attrs);
-				this.out += ">\n";
-				for (const b of block.children) {
-					this.renderBlock(b);
-				}
-				this.out += "</blockquote>\n";
-				break;
-			}
-			case "List": {
-				const tag = block.ordered ? "ol" : "ul";
-				this.out += "<";
-				this.out += tag;
-				this.emitAttrs(block.attrs);
-				this.out += ">\n";
-				for (const item of block.items) {
-					this.renderListItem(item);
-				}
-				this.out += `</${tag}>\n`;
-				break;
-			}
-			case "ThematicBreak": {
-				this.out += "<hr>\n";
-				break;
-			}
-			case "HtmlBlock": {
-				this.out += block.html;
-				if (!block.html.endsWith("\n")) {
-					this.out += "\n";
-				}
-				break;
-			}
-			case "Table": {
-				this.renderTable(block.table, block.attrs);
-				break;
-			}
-			case "LinkReferenceDefinition": {
-				// Not rendered as visible HTML.
-				break;
-			}
-			case "Comment": {
-				this.out += "<!-- ";
-				this.out += block.value;
-				this.out += " -->\n";
-				break;
-			}
-		}
-	}
+  /** Render a single block-level node. */
+  renderBlock(block: Block): void {
+    switch (block.type) {
+      case "Heading": {
+        this.out += `<h${block.level}`;
+        this.emitAttrs(block.attrs);
+        this.out += ">";
+        for (const inline of block.children) {
+          this.renderInline(inline);
+        }
+        this.out += `</h${block.level}>\n`;
+        break;
+      }
+      case "Paragraph": {
+        this.out += "<p";
+        this.emitAttrs(block.attrs);
+        this.out += ">";
+        for (const inline of block.children) {
+          this.renderInline(inline);
+        }
+        this.out += "</p>\n";
+        break;
+      }
+      case "CodeBlock": {
+        this.out += "<pre><code";
+        if (block.lang !== undefined && block.lang !== "") {
+          this.out += ' class="language-';
+          this.out += this.escNoQuote(block.lang);
+          this.out += '"';
+        }
+        this.emitAttrs(block.attrs);
+        this.out += ">";
+        // Escape `<`, `>`, `&` (etc.) so the code content is valid HTML.
+        this.out += this.esc(block.code);
+        this.out += "</code></pre>\n";
+        break;
+      }
+      case "BlockQuote": {
+        this.out += "<blockquote";
+        this.emitAttrs(block.attrs);
+        this.out += ">\n";
+        for (const b of block.children) {
+          this.renderBlock(b);
+        }
+        this.out += "</blockquote>\n";
+        break;
+      }
+      case "List": {
+        const tag = block.ordered ? "ol" : "ul";
+        this.out += "<";
+        this.out += tag;
+        this.emitAttrs(block.attrs);
+        this.out += ">\n";
+        for (const item of block.items) {
+          this.renderListItem(item);
+        }
+        this.out += `</${tag}>\n`;
+        break;
+      }
+      case "ThematicBreak": {
+        this.out += "<hr>\n";
+        break;
+      }
+      case "HtmlBlock": {
+        this.out += block.html;
+        if (!block.html.endsWith("\n")) {
+          this.out += "\n";
+        }
+        break;
+      }
+      case "Table": {
+        this.renderTable(block.table, block.attrs);
+        break;
+      }
+      case "LinkReferenceDefinition": {
+        // Not rendered as visible HTML.
+        break;
+      }
+      case "Comment": {
+        this.out += "<!-- ";
+        this.out += block.value;
+        this.out += " -->\n";
+        break;
+      }
+    }
+  }
 
-	/** Render a single list item (`<li>`). */
-	private renderListItem(item: ListItem): void {
-		this.out += "<li";
-		if (item.task !== undefined) {
-			const checked = item.task === "Checked";
-			this.out += ' class="task-list-item"';
-			if (checked) {
-				this.out += ' data-checked="true"';
-			}
-		}
-		this.out += ">";
-		if (item.task !== undefined) {
-			const checked = item.task === "Checked";
-			this.out += '<input type="checkbox" class="task-list-item-checkbox"';
-			if (checked) {
-				this.out += " checked";
-			}
-			this.out += " disabled> ";
-		}
-		// Render nested blocks.  If the item contains a single paragraph we
-		// render it inline (no wrapping <p>) per CommonMark rendering
-		// convention for tight lists.
-		const first = item.children[0];
-		const tight = item.children.length === 1 && first?.type === "Paragraph";
-		if (tight) {
-			if (first !== undefined && first.type === "Paragraph") {
-				for (const inline of first.children) {
-					this.renderInline(inline);
-				}
-			}
-		} else {
-			this.out += "\n";
-			for (const b of item.children) {
-				this.renderBlock(b);
-			}
-		}
-		this.out += "</li>\n";
-	}
+  /** Render a single list item (`<li>`). */
+  private renderListItem(item: ListItem): void {
+    this.out += "<li";
+    if (item.task !== undefined) {
+      const checked = item.task === "Checked";
+      this.out += ' class="task-list-item"';
+      if (checked) {
+        this.out += ' data-checked="true"';
+      }
+    }
+    this.out += ">";
+    if (item.task !== undefined) {
+      const checked = item.task === "Checked";
+      this.out += '<input type="checkbox" class="task-list-item-checkbox"';
+      if (checked) {
+        this.out += " checked";
+      }
+      this.out += " disabled> ";
+    }
+    // Render nested blocks.  If the item contains a single paragraph we
+    // render it inline (no wrapping <p>) per CommonMark rendering
+    // convention for tight lists.
+    const first = item.children[0];
+    const tight = item.children.length === 1 && first?.type === "Paragraph";
+    if (tight) {
+      if (first !== undefined && first.type === "Paragraph") {
+        for (const inline of first.children) {
+          this.renderInline(inline);
+        }
+      }
+    } else {
+      this.out += "\n";
+      for (const b of item.children) {
+        this.renderBlock(b);
+      }
+    }
+    this.out += "</li>\n";
+  }
 
-	/** Render a GFM table. */
-	private renderTable(table: Table, attrs: Attributes | undefined): void {
-		this.out += "<table";
-		this.emitAttrs(attrs);
-		this.out += ">\n<thead>\n<tr>\n";
-		// Header
-		for (const [i, cell] of table.header.cells.entries()) {
-			this.out += "<th";
-			this.emitAlign(table.alignments[i]);
-			this.out += ">";
-			for (const inline of cell.children) {
-				this.renderInline(inline);
-			}
-			this.out += "</th>\n";
-		}
-		this.out += "</tr>\n</thead>\n<tbody>\n";
-		// Body rows
-		for (const row of table.rows) {
-			this.out += "<tr>\n";
-			for (const [i, cell] of row.cells.entries()) {
-				this.out += "<td";
-				this.emitAlign(table.alignments[i]);
-				this.out += ">";
-				for (const inline of cell.children) {
-					this.renderInline(inline);
-				}
-				this.out += "</td>\n";
-			}
-			this.out += "</tr>\n";
-		}
-		this.out += "</tbody>\n</table>\n";
-	}
+  /** Render a GFM table. */
+  private renderTable(table: Table, attrs: Attributes | undefined): void {
+    this.out += "<table";
+    this.emitAttrs(attrs);
+    this.out += ">\n<thead>\n<tr>\n";
+    // Header
+    for (const [i, cell] of table.header.cells.entries()) {
+      this.out += "<th";
+      this.emitAlign(table.alignments[i]);
+      this.out += ">";
+      for (const inline of cell.children) {
+        this.renderInline(inline);
+      }
+      this.out += "</th>\n";
+    }
+    this.out += "</tr>\n</thead>\n<tbody>\n";
+    // Body rows
+    for (const row of table.rows) {
+      this.out += "<tr>\n";
+      for (const [i, cell] of row.cells.entries()) {
+        this.out += "<td";
+        this.emitAlign(table.alignments[i]);
+        this.out += ">";
+        for (const inline of cell.children) {
+          this.renderInline(inline);
+        }
+        this.out += "</td>\n";
+      }
+      this.out += "</tr>\n";
+    }
+    this.out += "</tbody>\n</table>\n";
+  }
 
-	/** Emit a `style="text-align: …"` attribute for a table column alignment. */
-	private emitAlign(align: PeisarTableCellAlignment | undefined): void {
-		if (align === undefined) {
-			return;
-		}
-		let css: string;
-		switch (align) {
-			case "Default":
-			case "Left":
-				return;
-			case "Center":
-				css = "text-align: center";
-				break;
-			case "Right":
-				css = "text-align: right";
-				break;
-		}
-		this.out += ' style="';
-		this.out += css;
-		this.out += '"';
-	}
+  /** Emit a `style="text-align: …"` attribute for a table column alignment. */
+  private emitAlign(align: PeisarTableCellAlignment | undefined): void {
+    if (align === undefined) {
+      return;
+    }
+    let css: string;
+    switch (align) {
+      case "Default":
+      case "Left":
+        return;
+      case "Center":
+        css = "text-align: center";
+        break;
+      case "Right":
+        css = "text-align: right";
+        break;
+    }
+    this.out += ' style="';
+    this.out += css;
+    this.out += '"';
+  }
 
-	// -----------------------------------------------------------------------
-	// Inlines
-	// -----------------------------------------------------------------------
+  // -----------------------------------------------------------------------
+  // Inlines
+  // -----------------------------------------------------------------------
 
-	/** Render a single inline-level node. */
-	renderInline(inline: Inline): void {
-		switch (inline.type) {
-			case "Text": {
-				this.out += this.esc(inline.value);
-				break;
-			}
-			case "Emphasis": {
-				const [open, close] =
-					inline.level === "Italic"
-						? ["<em>", "</em>"]
-						: ["<strong>", "</strong>"];
-				this.out += open;
-				for (const child of inline.children) {
-					this.renderInline(child);
-				}
-				this.out += close;
-				break;
-			}
-			case "Code": {
-				this.out += "<code>";
-				this.out += this.esc(inline.code);
-				this.out += "</code>";
-				break;
-			}
-			case "HtmlInline": {
-				// Raw HTML — emit as-is.
-				this.out += inline.html;
-				break;
-			}
-			case "Strikethrough": {
-				this.out += "<del>";
-				for (const child of inline.children) {
-					this.renderInline(child);
-				}
-				this.out += "</del>";
-				break;
-			}
-			case "HardBreak": {
-				this.out += "<br>\n";
-				break;
-			}
-			case "SoftBreak": {
-				this.out += "\n";
-				break;
-			}
-			case "Image": {
-				this.out += '<img src="';
-				this.out += this.escAttr(inline.url);
-				this.out += '" alt="';
-				this.out += this.esc(inline.alt);
-				this.out += '"';
-				if (inline.title != null) {
-					this.out += ' title="';
-					this.out += this.esc(inline.title);
-					this.out += '"';
-				}
-				this.out += ">";
-				break;
-			}
-			case "Link":
-			case "LinkReference": {
-				this.out += '<a href="';
-				this.out += this.escAttr(inline.url);
-				this.out += '"';
-				if (inline.title != null) {
-					this.out += ' title="';
-					this.out += this.esc(inline.title);
-					this.out += '"';
-				}
-				this.out += ">";
-				for (const child of inline.text) {
-					this.renderInline(child);
-				}
-				this.out += "</a>";
-				break;
-			}
-		}
-	}
+  /** Render a single inline-level node. */
+  renderInline(inline: Inline): void {
+    switch (inline.type) {
+      case "Text": {
+        this.out += this.esc(inline.value);
+        break;
+      }
+      case "Emphasis": {
+        const [open, close] =
+          inline.level === "Italic"
+            ? ["<em>", "</em>"]
+            : ["<strong>", "</strong>"];
+        this.out += open;
+        for (const child of inline.children) {
+          this.renderInline(child);
+        }
+        this.out += close;
+        break;
+      }
+      case "Code": {
+        this.out += "<code>";
+        this.out += this.esc(inline.code);
+        this.out += "</code>";
+        break;
+      }
+      case "HtmlInline": {
+        // Raw HTML — emit as-is.
+        this.out += inline.html;
+        break;
+      }
+      case "Strikethrough": {
+        this.out += "<del>";
+        for (const child of inline.children) {
+          this.renderInline(child);
+        }
+        this.out += "</del>";
+        break;
+      }
+      case "HardBreak": {
+        this.out += "<br>\n";
+        break;
+      }
+      case "SoftBreak": {
+        this.out += "\n";
+        break;
+      }
+      case "Image": {
+        this.out += '<img src="';
+        this.out += this.escAttr(inline.url);
+        this.out += '" alt="';
+        this.out += this.esc(inline.alt);
+        this.out += '"';
+        if (inline.title != null) {
+          this.out += ' title="';
+          this.out += this.esc(inline.title);
+          this.out += '"';
+        }
+        this.out += ">";
+        break;
+      }
+      case "Link":
+      case "LinkReference": {
+        this.out += '<a href="';
+        this.out += this.escAttr(inline.url);
+        this.out += '"';
+        if (inline.title != null) {
+          this.out += ' title="';
+          this.out += this.esc(inline.title);
+          this.out += '"';
+        }
+        this.out += ">";
+        for (const child of inline.text) {
+          this.renderInline(child);
+        }
+        this.out += "</a>";
+        break;
+      }
+    }
+  }
 
-	// -----------------------------------------------------------------------
-	// Small helpers
-	// -----------------------------------------------------------------------
+  // -----------------------------------------------------------------------
+  // Small helpers
+  // -----------------------------------------------------------------------
 
-	/**
-	 * Emit Kramdown attributes as an HTML attribute string (with a leading
-	 * space if non-empty).
-	 */
-	private emitAttrs(attrs: Attributes | undefined): void {
-		if (attrs === undefined) {
-			return;
-		}
-		const s = toHtmlAttrString(attrs);
-		if (s !== "") {
-			this.out += " ";
-			this.out += s;
-		}
-	}
+  /**
+   * Emit Kramdown attributes as an HTML attribute string (with a leading
+   * space if non-empty).
+   */
+  private emitAttrs(attrs: Attributes | undefined): void {
+    if (attrs === undefined) {
+      return;
+    }
+    const s = toHtmlAttrString(attrs);
+    if (s !== "") {
+      this.out += " ";
+      this.out += s;
+    }
+  }
 
-	/**
-	 * Escape text for HTML content (escapes `&`, `<`, `>`, `"`, `'`).
-	 * Honors the `escape` flag.
-	 */
-	private esc(text: string): string {
-		if (!this.escape) {
-			return text;
-		}
-		return text.replace(/[&<>"']/g, (c) => {
-			switch (c) {
-				case "&":
-					return "&amp;";
-				case "<":
-					return "&lt;";
-				case ">":
-					return "&gt;";
-				case '"':
-					return "&quot;";
-				default:
-					return "&#39;";
-			}
-		});
-	}
+  /**
+   * Escape text for HTML content (escapes `&`, `<`, `>`, `"`, `'`).
+   * Honors the `escape` flag.
+   */
+  private esc(text: string): string {
+    if (!this.escape) {
+      return text;
+    }
+    return text.replace(/[&<>"']/g, (c) => {
+      switch (c) {
+        case "&":
+          return "&amp;";
+        case "<":
+          return "&lt;";
+        case ">":
+          return "&gt;";
+        case '"':
+          return "&quot;";
+        default:
+          return "&#39;";
+      }
+    });
+  }
 
-	/**
-	 * Escape text for use inside an HTML attribute value (escapes `&`, `"`,
-	 * `<`, `>`).
-	 */
-	private escAttr(text: string): string {
-		return text.replace(/[&"<>]/g, (c) => {
-			switch (c) {
-				case "&":
-					return "&amp;";
-				case '"':
-					return "&quot;";
-				case "<":
-					return "&lt;";
-				default:
-					return "&gt;";
-			}
-		});
-	}
+  /**
+   * Escape text for use inside an HTML attribute value (escapes `&`, `"`,
+   * `<`, `>`).
+   */
+  private escAttr(text: string): string {
+    return text.replace(/[&"<>]/g, (c) => {
+      switch (c) {
+        case "&":
+          return "&amp;";
+        case '"':
+          return "&quot;";
+        case "<":
+          return "&lt;";
+        default:
+          return "&gt;";
+      }
+    });
+  }
 
-	/**
-	 * Escape text without escaping single quotes — used for class names and
-	 * other attribute values that won't contain `'` (same escapes as
-	 * `escAttr`).
-	 */
-	private escNoQuote(text: string): string {
-		return this.escAttr(text);
-	}
+  /**
+   * Escape text without escaping single quotes — used for class names and
+   * other attribute values that won't contain `'` (same escapes as
+   * `escAttr`).
+   */
+  private escNoQuote(text: string): string {
+    return this.escAttr(text);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -517,14 +517,10 @@ export class AstToHtml {
  * `From<bool> for RenderOptions` impl).
  */
 export function renderDocumentHtml(
-	doc: Document,
-	opts?: RenderOptions | boolean,
+  doc: Document,
+  opts?: Partial<PeisarOptions> | undefined,
 ): string {
-	const options: RenderOptions | undefined =
-		typeof opts === "boolean"
-			? { ...DEFAULT_RENDER_OPTIONS, fragment: opts }
-			: opts;
-	const r = new AstToHtml(options);
-	r.renderDocument(doc);
-	return r.finish();
+  const r = new AstToHtml(opts);
+  r.renderDocument(doc);
+  return r.finish();
 }
